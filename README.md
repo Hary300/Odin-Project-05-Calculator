@@ -162,3 +162,29 @@ g
 Pemenggalan tersebut bergantung pada lebar container dan ukuran teks.
 
 **Catatan:** Cocok untuk menangani teks panjang tanpa spasi. Untuk teks biasa, `overflow-wrap: break-word` sering lebih sesuai karena kata hanya dipecah ketika diperlukan agar tidak melampaui batas container.
+
+## Memeriksa Titik Desimal pada Kalkulator
+
+```js
+let abc = display.innerText.split(/[+%*/-]/).pop();
+
+if (abc.includes('.')) {
+  return;
+}
+```
+
+**Cara kerja:**
+
+- `display.innerText` — Mengambil teks yang ditampilkan pada kalkulator.
+- `.split(/[+%*/-]/)` — Memisahkan teks berdasarkan operator matematika `+`, `%`, `*`, `/`, dan `-`.
+- `.pop()` — Mengambil elemen terakhir dari array hasil `split()`, yaitu angka terakhir yang sedang dimasukkan.
+- `.includes('.')` — Memeriksa apakah angka terakhir sudah mengandung titik desimal.
+- `return` — Menghentikan fungsi jika titik desimal sudah ada.
+
+**Contoh:**
+
+- Display `12.5` → angka terakhir adalah `"12.5"` → titik sudah ada → fungsi berhenti.
+- Display `12.5+3` → angka terakhir adalah `"3"` → titik belum ada → fungsi berlanjut.
+- Display `12+3.5` → angka terakhir adalah `"3.5"` → titik sudah ada → fungsi berhenti.
+
+**Kesimpulan:** Kode ini mencegah pengguna memasukkan lebih dari satu titik desimal pada angka yang sedang dimasukkan, tanpa menghalangi penggunaan titik desimal pada angka berikutnya setelah operator.
