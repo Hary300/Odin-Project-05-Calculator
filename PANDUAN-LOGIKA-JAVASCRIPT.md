@@ -119,6 +119,10 @@ function updateDisplay() {
 }
 ```
 
+`||` berarti “atau” dan di sini dipakai sebagai nilai cadangan. JavaScript memakai nilai di sebelah kiri jika nilainya truthy; jika tidak, JavaScript memakai nilai di sebelah kanan. String kosong (`''`) adalah falsy, jadi kalau `saveValue` sedang kosong, layar menampilkan `'0'` sebagai gantinya. Ini mencegah layar terlihat kosong saat belum ada angka yang bisa ditampilkan. Contohnya, setelah hasil lama dibersihkan untuk memulai input baru, `saveValue` bisa sementara menjadi `''` sebelum angka dari tombol ditambahkan.
+
+Pada kalkulator ini, `saveValue` memang berupa string. String `'0'` bukan string kosong, sehingga truthy dan tetap ditampilkan sebagai `0`. Jadi `|| '0'` bukan cara untuk mengubah string `'0'`, melainkan pengaman ketika `saveValue` kosong. Nilai lain yang falsy di JavaScript, seperti `null` atau `undefined`, juga akan memakai nilai cadangan, tetapi state kalkulator ini seharusnya tidak menyimpan nilai-nilai tersebut.
+
 **Cara berpikir:** anggap `saveValue` sebagai catatan utama dan layar sebagai salinannya. Saat catatan berubah menjadi `2+3`, panggil fungsi ini supaya layar juga menunjukkan `2+3`. Jangan membuat aturan pembaruan layar yang berbeda di setiap tombol; kalau layar dan catatan tidak sama, kalkulator bisa menampilkan satu angka tetapi menghitung angka lain.
 
 **Coba:** untuk setiap tombol yang dibuat nanti, tanyakan: “Setelah mengubah `saveValue`, apakah saya sudah memanggil `updateDisplay()`?”
@@ -129,7 +133,7 @@ Semua tombol angka melakukan pekerjaan serupa: membaca angka pada tombol, memasu
 
 Urutan yang perlu dilakukan saat angka ditekan:
 
-1. Jika `isCalculated` `true`, hapus hasil lama karena angka baru memulai hitungan baru.
+1. Jika `isCalculated` `true`, hapus hasil lama karena angka baru memulai hitungan baru. Misalnya, setelah `2+3=` layar menunjukkan hasil `5` dan `isCalculated` bernilai `true`. Jika pengguna lalu menekan `9`, hasil `5` harus dibuang sehingga layar menjadi `9`. Tanpa langkah ini, angka baru akan dirangkai dengan hasil lama dan layar menjadi `59`, padahal pengguna bermaksud memulai hitungan baru dengan angka `9`.
 2. Jika `saveValue` hanya berisi `0`, hapus `0` supaya menekan `7` tidak menghasilkan `07`.
 3. Tambahkan angka dari tombol yang ditekan ke `saveValue`.
 4. Ubah `isCalculated` menjadi `false`, sebab pengguna sudah mulai memasukkan ekspresi baru.
@@ -141,37 +145,124 @@ Urutan yang perlu dilakukan saat angka ditekan:
 
 ## Tahap 6: Buat Tombol Operator
 
-Tombol operator membaca simbol pada tombol yang ditekan, lalu menambahkannya ke ekspresi.
+Tombol operator membaca simbol yang ditekan, memeriksa keadaan kalkulator, lalu menambahkan atau mengganti simbol di `saveValue`. Alurnya:
 
-Sebelum menambahkan simbol, periksa:
+1. **Ambil simbol operator dari tombol:**
 
-1. Jika layar menunjukkan `Error`, abaikan operator.
-2. Jika ekspresi masih `0`, operator selain minus tidak perlu ditambahkan.
-3. Jika karakter terakhir sudah operator, ganti operator terakhir itu.
-4. Jika karakter terakhir angka, tambahkan operator baru.
-5. Setelah itu, perbarui layar.
+   ```js
+   const nextOperator = operator.innerText;
+   ```
 
-**Cara berpikir:** operator adalah tanda yang menunggu angka di sebelah kanannya. Setelah mengetik `5+`, pengguna boleh mengganti `+` dengan `*`, tetapi tidak masuk akal jika layar berisi `5+*`. Karena itu, operator baru mengganti operator lama bila belum ada angka setelahnya.
+   `operator.innerText` berisi teks tombol yang diklik, misalnya `+` atau `*`. Simbol itu disimpan di `nextOperator` agar bisa dipakai pada pemeriksaan dan saat memperbarui `saveValue`. Contoh: jika pengguna mengklik tombol `*`, maka `nextOperator` berisi `'*'`.
 
-Dalam kode, pola seperti `/[+\-*/%]$/` memeriksa apakah karakter paling akhir adalah operator. Tanda `$` berarti “akhir tulisan”. Jadi `5+` cocok; `5+2` tidak cocok.
+2. **Abaikan operator setelah kalkulator menampilkan `Error`:**
+
+   ```js
+   if (isCalculated && saveValue === 'Error') return;
+   ```
+
+   `return` langsung menghentikan handler ini. Jadi setelah ekspresi yang tidak bisa dihitung menghasilkan `Error`, menekan `+` atau `*` tidak menambahkan simbol ke tulisan `Error`. Pengguna bisa memakai `AC` untuk memulai lagi.
+
+3. **Jika yang terlihat adalah hasil hitungan, izinkan hasil itu menjadi awal ekspresi berikutnya:**
+
+   ```js
+   if (isCalculated) isCalculated = false;
+   ```
+
+   Hasilnya tidak dihapus. Misalnya, setelah `2+3=` layar berisi `5` dan `isCalculated` bernilai `true`. Menekan `*` mengubah tanda status menjadi `false`, lalu `*` ditambahkan sehingga ekspresinya menjadi `5*`. Dengan begitu, hasil `5` bisa dipakai untuk hitungan lanjutan.
+
+4. **Jangan tambahkan operator ke `0`, kecuali minus:**
+
+   ```js
+   if (saveValue === '0' && nextOperator !== '-') return;
+   ```
+
+   Jika layar baru menunjukkan `0`, menekan `+`, `*`, `/`, atau `%` diabaikan agar ekspresi tidak dimulai dengan operator yang tidak punya angka sebelumnya. Minus diizinkan: misalnya, menekan `-` saat layar `0` membentuk `0-`, lalu pengguna bisa memasukkan angka untuk menguranginya dari nol.
+
+5. **Periksa apakah karakter terakhir `saveValue` sudah berupa operator:**
+
+   ```js
+   if (/[+\-*/%]$/.test(saveValue)) {
+   ```
+
+   Ekspresi reguler `/[+\-*/%]$/` mencari salah satu simbol operator (`+`, `-`, `*`, `/`, `%`) tepat di akhir tulisan. `test(saveValue)` menjalankan pemeriksaan itu dan menghasilkan `true` jika cocok, atau `false` jika tidak. Tanda `$` berarti “akhir tulisan”: `5+` cocok karena berakhir dengan `+`, sedangkan `5+2` tidak cocok karena berakhir dengan `2`.
+
+6. **Ganti operator terakhir jika belum ada angka di kanannya:**
+
+   ```js
+   saveValue = saveValue.slice(0, -1) + nextOperator;
+   ```
+
+   `slice(0, -1)` mengambil seluruh tulisan kecuali karakter terakhir. Contoh: pada `saveValue` bernilai `5+`, hasil `slice(0, -1)` adalah `5`. Lalu `nextOperator` ditempelkan, sehingga jika tombol `*` ditekan, hasil akhirnya `5*`, bukan `5+*`. Ini mencegah dua operator berurutan.
+
+7. **Jika karakter terakhir bukan operator, tambahkan operator baru:**
+
+   ```js
+   saveValue += nextOperator;
+   ```
+
+   `+=` menempelkan simbol ke akhir tulisan yang sudah ada. Contohnya, dari `saveValue` bernilai `5`, menekan `+` membuatnya menjadi `5+`.
+
+8. **Tandai bahwa pengguna sedang menyusun ekspresi, lalu perbarui layar:**
+
+   ```js
+   isCalculated = false;
+   updateDisplay();
+   ```
+
+   Setelah operator ditekan, ekspresi belum menjadi hasil akhir—angka berikutnya masih bisa dimasukkan. Karena itu `isCalculated` harus `false`. Contoh: setelah hasil `5` ditekan `+`, statusnya tidak lagi menandakan hasil akhir; ekspresi `5+` sedang menunggu angka berikutnya. `updateDisplay()` kemudian menampilkan isi `saveValue` yang terbaru.
 
 **Coba:** tekan `5`, `+`, `*`, `2`, `=`. Layar harus berurutan menjadi `5`, `5+`, `5*`, `5*2`, `10`.
 
 ## Tahap 7: Buat Tombol Desimal
 
-Titik desimal hanya boleh digunakan sekali untuk satu angka. Untuk mengetahui angka yang sedang ditulis, ambil teks setelah operator terakhir.
+Titik desimal hanya boleh muncul sekali dalam satu angka. Handler desimal menangani angka yang sedang ditulis, bukan seluruh ekspresi.
 
-Contoh: jika `saveValue` berisi `12.5+3`, angka terakhir yang sedang ditulis adalah `3`. Titik sudah ada pada `12.5`, tetapi itu tidak melarang titik pada angka `3`.
+1. **Jika hitungan sebelumnya sudah selesai, mulai angka baru dari nol:**
 
-Urutan handler desimal:
+   ```js
+   if (isCalculated) {
+     saveValue = '0';
+     isCalculated = false;
+   }
+   ```
 
-1. Jika perhitungan baru selesai, mulai angka desimal baru dari `0`.
-2. Cari angka terakhir setelah operator.
-3. Jika angka terakhir sudah mengandung titik, jangan tambahkan titik lagi.
-4. Jika layar berakhir dengan operator, tambahkan `0` dulu.
-5. Tambahkan titik dan perbarui layar.
+   Misalnya, setelah `2+3=` layar menunjukkan `5`. Jika pengguna menekan titik untuk memulai angka desimal baru, hasil `5` diganti dengan `0`, lalu status hasil dihapus. Langkah selanjutnya akan membuat layar menunjukkan `0.`. Tanpa mengosongkan hasil, titik bisa saja ditempelkan ke hasil lama, padahal pengguna bermaksud mulai angka baru.
 
-**Cara berpikir:** periksa satu angka yang sedang ditulis, bukan seluruh ekspresi. Pada `12.5+3`, titik baru masih boleh. Pada `12.5+3.2`, titik baru harus ditolak karena `3.2` sudah punya titik.
+2. **Ambil angka yang sedang ditulis, yaitu bagian setelah operator terakhir:**
+
+   ```js
+   const currentNumber = saveValue.split(/[+%*/-]/).pop();
+   ```
+
+   `split(/[+%*/-]/)` memecah ekspresi pada simbol operator, sedangkan `pop()` mengambil bagian paling akhir. Contoh: `12.5+3` dipecah menjadi `12.5` dan `3`, sehingga `currentNumber` berisi `3`. Titik pada `12.5` tidak mencegah pengguna menulis titik pada angka `3`.
+
+3. **Tolak titik kedua pada angka yang sama:**
+
+   ```js
+   if (currentNumber.includes('.')) return;
+   ```
+
+   `includes('.')` memeriksa apakah angka yang sedang ditulis sudah memiliki titik. Jika sudah, `return` menghentikan handler tanpa mengubah layar. Contoh: pada `12.5+3.`, menekan titik lagi tidak melakukan apa-apa. Namun pada `12.5+3`, titik masih boleh ditambahkan karena angka terakhir `3` belum memiliki titik.
+
+4. **Jika ekspresi berakhir dengan operator, tambahkan `0` sebagai angka sebelum titik:**
+
+   ```js
+   if (/[+\-*/%]$/.test(saveValue)) saveValue += '0';
+   ```
+
+   Pemeriksaan ini mendeteksi operator di ujung ekspresi. Misalnya, dari `2+`, menekan titik akan lebih dulu mengubahnya menjadi `2+0`; ini membuat titik desimal punya angka di sebelah kirinya.
+
+5. **Tambahkan titik dari tombol dan perbarui layar:**
+
+   ```js
+   saveValue += decimal.innerText;
+   updateDisplay();
+   ```
+
+   `decimal.innerText` adalah teks tombol desimal, biasanya `.`. Contohnya, `2+0` menjadi `2+0.`. Jika ekspresi sebelumnya `12.5+3`, hasilnya menjadi `12.5+3.`. Layar diperbarui agar menunjukkan ekspresi terbaru.
+
+**Cara berpikir:** titik hanya diperiksa pada angka terakhir. Pada `12.5+3`, titik baru masih boleh karena angka terakhir adalah `3`. Pada `12.5+3.2`, titik baru ditolak karena angka terakhir `3.2` sudah mengandung titik.
 
 **Coba:** tekan `1`, `.`, `2`, `.`, `3`; hasil di layar harus `1.23`. Setelah mengetik `1+`, tekan `.`; layar harus menjadi `1+0.`.
 
