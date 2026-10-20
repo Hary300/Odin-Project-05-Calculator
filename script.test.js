@@ -213,6 +213,36 @@ describe('calculator input', () => {
     expect(displayValue()).toBe('-5');
   });
 
+  test('starts an expression with a negative number', () => {
+    clickOperator('-');
+    clickNumber('5');
+
+    expect(displayValue()).toBe('-5');
+
+    clickEqual();
+
+    expect(displayValue()).toBe('-5');
+  });
+
+  test('starts an expression with a negative decimal number', () => {
+    clickOperator('-');
+    clickDecimal();
+    clickNumber('5');
+    clickEqual();
+
+    expect(displayValue()).toBe('-0.5');
+  });
+
+  test('does nothing when equals is pressed again after a negative result', () => {
+    clickNumber('1');
+    clickOperator('-');
+    clickNumber('6');
+    clickEqual();
+    clickEqual();
+
+    expect(displayValue()).toBe('-5');
+  });
+
   test('recovers from an error with delete', () => {
     clickNumber('8');
     clickOperator('/');

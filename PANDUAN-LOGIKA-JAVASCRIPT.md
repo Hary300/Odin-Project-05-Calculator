@@ -171,15 +171,28 @@ Tombol operator membaca simbol yang ditekan, memeriksa keadaan kalkulator, lalu 
 
    Hasilnya tidak dihapus. Misalnya, setelah `2+3=` layar berisi `5` dan `isCalculated` bernilai `true`. Menekan `*` mengubah tanda status menjadi `false`, lalu `*` ditambahkan sehingga ekspresinya menjadi `5*`. Dengan begitu, hasil `5` bisa dipakai untuk hitungan lanjutan.
 
-4. **Jangan tambahkan operator ke `0`, kecuali minus:**
+4. **Saat layar masih `0`, izinkan minus untuk memulai angka negatif:**
 
    ```js
-   if (saveValue === '0' && nextOperator !== '-') return;
+   if (saveValue === '0') {
+     if (nextOperator !== '-') return;
+     saveValue = '-';
+     updateDisplay();
+     return;
+   }
    ```
 
-   Jika layar baru menunjukkan `0`, menekan `+`, `*`, `/`, atau `%` diabaikan agar ekspresi tidak dimulai dengan operator yang tidak punya angka sebelumnya. Minus diizinkan: misalnya, menekan `-` saat layar `0` membentuk `0-`, lalu pengguna bisa memasukkan angka untuk menguranginya dari nol.
+   Jika layar baru menunjukkan `0`, menekan `+`, `*`, `/`, atau `%` diabaikan. Minus punya fungsi khusus di posisi awal: menekan `-` mengganti `0` dengan tanda minus saja. Setelah itu, menekan `5` menghasilkan `-5`, yaitu angka negatif, bukan ekspresi pengurangan `0-5`.
 
-5. **Periksa apakah karakter terakhir `saveValue` sudah berupa operator:**
+5. **Biarkan tanda minus awal menunggu angka:**
+
+   ```js
+   if (saveValue === '-') return;
+   ```
+
+   Saat `saveValue` hanya `-`, angka masih belum dimasukkan. Abaikan operator lain dulu supaya tanda negatif tidak terganti menjadi ekspresi yang tidak valid seperti `+`.
+
+6. **Periksa apakah karakter terakhir `saveValue` sudah berupa operator:**
 
    ```js
    if (/[+\-*/%]$/.test(saveValue)) {
@@ -187,7 +200,7 @@ Tombol operator membaca simbol yang ditekan, memeriksa keadaan kalkulator, lalu 
 
    Ekspresi reguler `/[+\-*/%]$/` mencari salah satu simbol operator (`+`, `-`, `*`, `/`, `%`) tepat di akhir tulisan. `test(saveValue)` menjalankan pemeriksaan itu dan menghasilkan `true` jika cocok, atau `false` jika tidak. Tanda `$` berarti “akhir tulisan”: `5+` cocok karena berakhir dengan `+`, sedangkan `5+2` tidak cocok karena berakhir dengan `2`.
 
-6. **Ganti operator terakhir jika belum ada angka di kanannya:**
+7. **Ganti operator terakhir jika belum ada angka di kanannya:**
 
    ```js
    saveValue = saveValue.slice(0, -1) + nextOperator;
@@ -195,7 +208,7 @@ Tombol operator membaca simbol yang ditekan, memeriksa keadaan kalkulator, lalu 
 
    `slice(0, -1)` mengambil seluruh tulisan kecuali karakter terakhir. Contoh: pada `saveValue` bernilai `5+`, hasil `slice(0, -1)` adalah `5`. Lalu `nextOperator` ditempelkan, sehingga jika tombol `*` ditekan, hasil akhirnya `5*`, bukan `5+*`. Ini mencegah dua operator berurutan.
 
-7. **Jika karakter terakhir bukan operator, tambahkan operator baru:**
+8. **Jika karakter terakhir bukan operator, tambahkan operator baru:**
 
    ```js
    saveValue += nextOperator;
@@ -203,7 +216,7 @@ Tombol operator membaca simbol yang ditekan, memeriksa keadaan kalkulator, lalu 
 
    `+=` menempelkan simbol ke akhir tulisan yang sudah ada. Contohnya, dari `saveValue` bernilai `5`, menekan `+` membuatnya menjadi `5+`.
 
-8. **Tandai bahwa pengguna sedang menyusun ekspresi, lalu perbarui layar:**
+9. **Tandai bahwa pengguna sedang menyusun ekspresi, lalu perbarui layar:**
 
    ```js
    isCalculated = false;
@@ -212,7 +225,7 @@ Tombol operator membaca simbol yang ditekan, memeriksa keadaan kalkulator, lalu 
 
    Setelah operator ditekan, ekspresi belum menjadi hasil akhir—angka berikutnya masih bisa dimasukkan. Karena itu `isCalculated` harus `false`. Contoh: setelah hasil `5` ditekan `+`, statusnya tidak lagi menandakan hasil akhir; ekspresi `5+` sedang menunggu angka berikutnya. `updateDisplay()` kemudian menampilkan isi `saveValue` yang terbaru.
 
-**Coba:** tekan `5`, `+`, `*`, `2`, `=`. Layar harus berurutan menjadi `5`, `5+`, `5*`, `5*2`, `10`.
+**Coba:** tekan `5`, `+`, `*`, `2`, `=`. Layar harus berurutan menjadi `5`, `5+`, `5*`, `5*2`, `10`. Untuk angka negatif, tekan `-`, `5`, `=`; layar menjadi `-5`.
 
 ## Tahap 7: Buat Tombol Desimal
 
@@ -303,6 +316,8 @@ Sebelum menghitung, ubah tulisan ekspresi menjadi potongan yang lebih mudah diba
 
 Program memakai pola pencarian untuk mengambil angka dan simbol operator dari tulisan. Setelah itu, gabungkan token kembali dan bandingkan dengan tulisan semula. Jika hasilnya berbeda, berarti ada karakter yang tidak berhasil dibaca.
 
+Untuk ekspresi yang dimulai dengan minus, seperti `-5`, evaluator memperlakukannya sebagai `0-5`. Ini memungkinkan angka negatif tunggal dihitung dengan alur operasi yang sama.
+
 **Cara berpikir:** sebelum menyuruh kalkulator menghitung, pastikan dulu ia bisa membaca isi layar. Ini seperti membaca kalimat: pisahkan bagian-bagiannya, lalu pastikan tidak ada karakter yang tertinggal. Urutan yang biasa diharapkan adalah angka, operator, angka, operator, angka.
 
 **Coba:** tulis sendiri token dari `12.5+3`. Lalu coba ekspresi yang salah, seperti `2+a`; program tidak boleh menganggapnya sebagai hitungan yang valid.
@@ -328,17 +343,18 @@ Program mengerjakan perkalian/pembagian/modulo terlebih dahulu. Setelah itu, pro
 
 Tombol `=` menjalankan beberapa pekerjaan secara berurutan:
 
-1. Memeriksa apakah ekspresi siap dihitung. `5+` belum siap karena belum ada angka setelah `+`.
-2. Mengirim tulisan ekspresi ke fungsi penghitung.
-3. Memeriksa apakah hasilnya bisa ditampilkan sebagai angka biasa.
-4. Menyimpan `Error` jika hasilnya tidak valid, atau menyimpan hasil hitung jika valid.
-5. Menandai bahwa tombol `=` sudah menyelesaikan percobaan hitung, lalu memperbarui layar. Penanda ini aktif baik saat muncul jawaban maupun saat layar menampilkan `Error`, supaya input berikutnya tahu perhitungan sebelumnya sudah berakhir.
+1. Jika hitungan sudah selesai (`isCalculated` bernilai `true`), hentikan handler tanpa mengubah apa pun. Misalnya, setelah `1-6=` layar menunjukkan `-5`. Menekan `=` lagi tidak perlu menghitung ulang hasil `-5` sebagai ekspresi baru.
+2. Memeriksa apakah ekspresi siap dihitung. `5+` belum siap karena belum ada angka setelah `+`.
+3. Mengirim tulisan ekspresi ke fungsi penghitung.
+4. Memeriksa apakah hasilnya bisa ditampilkan sebagai angka biasa.
+5. Menyimpan `Error` jika hasilnya tidak valid, atau menyimpan hasil hitung jika valid.
+6. Menandai bahwa tombol `=` sudah menyelesaikan percobaan hitung, lalu memperbarui layar. Penanda ini aktif baik saat muncul jawaban maupun saat layar menampilkan `Error`, supaya input berikutnya tahu perhitungan sebelumnya sudah berakhir.
 
 `Number.isFinite()` adalah pemeriksaan untuk memastikan hasilnya angka normal. Pembagian `8/0`, misalnya, menghasilkan `Infinity`, bukan angka yang layak ditampilkan sebagai jawaban, jadi kalkulator menampilkan `Error`.
 
 **Cara berpikir:** tombol `=` seperti petugas yang mengatur alur, bukan orang yang mengerjakan semua perhitungan sendiri. Ia memeriksa kesiapan, meminta evaluator menghitung, memeriksa jawaban, lalu menampilkannya.
 
-**Coba:** hitung `0.1+0.2` dan pastikan tampil `0.3`; coba `8/0` dan pastikan tampil `Error`; coba `5+` lalu `=` dan pastikan belum dihitung.
+**Coba:** hitung `0.1+0.2` dan pastikan tampil `0.3`; coba `8/0` dan pastikan tampil `Error`; coba `5+` lalu `=` dan pastikan belum dihitung; hitung `1-6=` lalu tekan `=` lagi dan pastikan layar tetap `-5`.
 
 ## Tahap 13: Uji Seluruh Alur
 
@@ -354,8 +370,10 @@ Jalankan tes otomatis dengan perintah `npm test`, lalu coba juga kalkulator di b
 | Prioritas operasi      | `2+3*4=`          | `14`                  |
 | Operator setara        | `8/4*2=`          | `4`                   |
 | Desimal                | `0.1+0.2=`        | `0.3`                 |
+| Angka negatif          | `-5=`             | `-5`                  |
 | Pembagian dengan nol   | `8/0=`            | `Error`               |
 | Ekspresi belum lengkap | `5+=`             | Tetap `5+`            |
+| `=` ditekan lagi       | `1-6==`           | Tetap `-5`            |
 | Hapus satu karakter    | `123`, lalu `DEL` | `12`                  |
 | Hapus semua            | Tekan `AC`        | `0`                   |
 | Angka setelah hasil    | `2+3=`, lalu `9`  | `9`                   |

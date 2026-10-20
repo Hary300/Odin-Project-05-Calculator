@@ -27,7 +27,13 @@ operators.forEach((operator) =>
     const nextOperator = operator.innerText;
     if (isCalculated && saveValue === 'Error') return;
     if (isCalculated) isCalculated = false;
-    if (saveValue === '0' && nextOperator !== '-') return;
+    if (saveValue === '0') {
+      if (nextOperator !== '-') return;
+      saveValue = '-';
+      updateDisplay();
+      return;
+    }
+    if (saveValue === '-') return;
 
     if (/[+\-*/%]$/.test(saveValue)) {
       saveValue = saveValue.slice(0, -1) + nextOperator;
@@ -54,6 +60,7 @@ decimal.addEventListener('click', () => {
 
 // Panduan: Tahap 12 - Hubungkan Tombol Sama Dengan
 equal.addEventListener('click', () => {
+  if (isCalculated) return;
   if (/[+\-*/%]$/.test(saveValue)) return;
   const result = evaluateExpression(saveValue);
   if (!Number.isFinite(result)) {
@@ -74,9 +81,9 @@ function evaluateExpression(expression) {
   // Panduan: Tahap 10 - Pecah Ekspresi Menjadi Token
   const tokens = expression.match(/\d+(?:\.\d*)?|\.\d+|[+\-*/%]/g);
   if (!tokens || tokens.join('') !== expression) return NaN;
+  if (tokens[0] === '-') tokens.unshift('0');
   if (tokens.length === 1) return Number(tokens[0]);
   if (tokens.length < 3) return NaN;
-  if (tokens[0] === '-') tokens.unshift('0');
   if (tokens.length % 2 === 0) return NaN;
 
   // Panduan: Tahap 11 - Hitung dengan Prioritas Operator
